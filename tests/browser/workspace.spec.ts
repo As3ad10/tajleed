@@ -154,8 +154,13 @@ test('English UI keeps book direction separate and saves four margins with a pri
 });
 
 test('manual save keeps edits in memory until saved and warns before switching projects',async({page})=>{
+  const warnings:string[]=[];
+  page.on('console',message=>{if(message.type()==='warning') warnings.push(message.text())});
   await gotoReady(page);
   await page.locator('#field-spine').fill('12');
+  await page.locator('[id="field-margins.top"]').fill('999');
+  await expect(page.getByText('تعرض المعاينة آخر قيم صالحة أثناء تصحيح الحقول.')).toBeVisible();
+  await page.locator('[id="field-margins.top"]').fill('5');
   await expect(page.locator('.save-state')).toContainText('تعديلات غير محفوظة');
   await page.getByRole('button',{name:'مشاريعي'}).click();
   page.once('dialog',dialog=>dialog.dismiss());
@@ -168,6 +173,7 @@ test('manual save keeps edits in memory until saved and warns before switching p
   await page.getByRole('button',{name:'مشروع جديد'}).click();
   await expect(page.locator('#field-spine')).toHaveValue('0');
   await expect(page.locator('.save-state')).toContainText('تعديلات غير محفوظة');
+  expect(warnings.some(message=>message.includes('state_proxy_equality_mismatch'))).toBe(false);
 });
 
 test('mobile viewport keeps preview above settings and imports are validated',async({page},testInfo)=>{

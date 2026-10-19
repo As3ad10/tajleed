@@ -40,7 +40,7 @@
   let pointer: {x:number;y:number} | null = null;
   const issues = $derived(validateProject(project,language));
   const blocked = $derived(issues.length>0 || Object.keys(draftErrors).length>0);
-  const previewOutdated = $derived(previewProject!==project);
+  const previewOutdated = $derived(JSON.stringify(previewProject)!==JSON.stringify(project));
   const geometry = $derived(calculateGeometry(previewProject));
   const preview = $derived(svgMarkup({...previewProject,exportOptions:{...previewProject.exportOptions,guides:guidesVisible,measurements:true,marks:false}},{preview:true,language}));
 
