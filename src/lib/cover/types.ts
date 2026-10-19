@@ -1,6 +1,7 @@
 export type Construction = 'paperback' | 'hardcover' | 'jacket';
 export type Opening = 'arabic' | 'english';
 export type SpineMode = 'manual' | 'estimate';
+export interface Margins { top: number; right: number; bottom: number; left: number }
 
 export interface BaseSpec {
   type: Construction;
@@ -8,7 +9,7 @@ export interface BaseSpec {
   height: number;
   spine: number;
   bleed: number;
-  safe: number;
+  margins: Margins;
 }
 export interface PaperbackSpec extends BaseSpec {
   type: 'paperback';
@@ -45,13 +46,14 @@ export interface ExportOptions {
   marks: boolean;
 }
 export interface CoverProject {
-  schemaVersion: 1;
+  schemaVersion: 2;
   id: string;
   name: string;
   createdAt: string;
   updatedAt: string;
   opening: Opening;
   spec: CoverSpec;
+  slug: { height: number; text: string };
   barcode: BarcodeOptions;
   exportOptions: ExportOptions;
 }
@@ -63,6 +65,8 @@ export interface CoverGeometry {
   width: number;
   height: number;
   cut: Rect;
+  bleedBounds: Rect;
+  slug?: Rect;
   bleed: number;
   panels: Panel[];
   lines: Segment[];

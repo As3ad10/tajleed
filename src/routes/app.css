@@ -50,7 +50,7 @@ input[type=checkbox]{width:18px;height:18px;min-height:18px;padding:0;accent-col
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 .app-shell{height:100dvh;min-height:620px;display:flex;flex-direction:column;overflow:hidden}
-.topbar{height:76px;min-height:76px;background:var(--surface);border-bottom:1px solid var(--border);display:grid;grid-template-columns:minmax(160px,1fr) minmax(170px,300px) minmax(240px,1fr);align-items:center;gap:22px;padding-inline:25px;position:relative;z-index:3}
+.topbar{height:76px;min-height:76px;background:var(--surface);border-bottom:1px solid var(--border);display:grid;grid-template-columns:minmax(160px,1fr) minmax(170px,300px) auto;align-items:center;gap:22px;padding-inline:25px;position:relative;z-index:3}
 .brand{display:flex;align-items:center;gap:9px;min-width:0}
 .brand img{display:block;width:93px;height:48px;object-fit:contain}
 .brand .brand-icon{width:43px;height:43px;border-radius:9px;flex:none}
@@ -64,8 +64,12 @@ input[type=checkbox]{width:18px;height:18px;min-height:18px;padding:0;accent-col
 .project-title input:hover,.project-title input:focus{border-color:var(--control-border);background:var(--input)}
 .save-state{display:block;color:var(--success);font-size:12px;line-height:1.2}
 .save-state.save-error{color:var(--danger)}
+.save-state.save-unsaved{color:var(--warning-text)}
 .header-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;white-space:nowrap}
 .text-button{border-color:transparent}
+.language-toggle{min-width:46px;padding-inline:8px;border-color:var(--border);background:var(--surface-muted);font-size:13px}
+.save-button{background:var(--accent-soft);border-color:var(--accent);color:var(--text)}
+.save-button:hover{background:var(--surface-muted)}
 .theme-toggle{width:40px;height:40px;padding:9px;display:grid;place-items:center;border-color:var(--border);background:var(--surface-muted)}
 .theme-toggle svg{display:block;width:20px;height:20px}
 .theme-toggle:hover{background:var(--accent-soft)}
@@ -90,6 +94,9 @@ input[type=checkbox]{width:18px;height:18px;min-height:18px;padding:0;accent-col
 .field small{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:4px}
 .unit{color:var(--muted);font-size:12px}
 .field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.field-group{display:grid;gap:8px;border-top:1px solid var(--border);padding-top:12px}
+.field-group-title{font-size:13px;margin:0;color:var(--text)}
+.field-group .field-note,.field-group .field-error{margin:0}
 .field-error,.field small.field-error{color:var(--danger);font-size:12px;line-height:1.45}
 .field-note{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
 .calculated{margin:0;background:var(--calculated-background);padding:8px 10px;border-radius:6px;font-size:13px}
@@ -102,7 +109,7 @@ input[type=checkbox]{width:18px;height:18px;min-height:18px;padding:0;accent-col
 .preview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 .preview-head h2{font-family:var(--font-display);font-size:25px;font-weight:700;line-height:1.4;margin:0}
 .preview-head p{margin:0;color:var(--muted);font-size:13px}
-.document-size{text-align:left;padding-top:4px;display:grid;line-height:1.5}
+.document-size{text-align:end;padding-top:4px;display:grid;line-height:1.5}
 .document-size span{font-size:12px;color:var(--muted)}
 .document-size bdi{font-size:15px;font-variant-numeric:tabular-nums}
 .preview-toolbar{display:flex;align-items:center;gap:6px;margin:18px 0 14px;flex-wrap:wrap}
@@ -165,10 +172,17 @@ input[type=checkbox]{width:18px;height:18px;min-height:18px;padding:0;accent-col
   .preview-foot span:last-child{display:none}
 }
 @media(max-width:520px){
-  .topbar{grid-template-columns:1fr auto;gap:0}
+  .topbar{grid-template-columns:1fr;gap:0;padding-block:10px}
   .brand img{width:65px}.brand .brand-icon{width:36px;height:36px}
-  .header-actions{gap:0}
-  .header-actions button{font-size:12px;min-height:38px;padding-inline:7px}
+  .brand{grid-column:1;grid-row:1}
+  .project-title{grid-column:1;grid-row:2}
+  .header-actions{grid-column:1;grid-row:3;display:grid;grid-template-columns:44px 44px minmax(0,1fr) minmax(0,1fr);gap:7px;margin-top:8px;white-space:normal}
+  .header-actions button{font-size:12px;min-height:40px;padding-inline:7px}
+  .language-toggle{grid-column:1;grid-row:1}
+  .theme-toggle{grid-column:2;grid-row:1}
+  .save-button{grid-column:3/5;grid-row:1}
+  .header-actions .text-button{grid-column:1/3;grid-row:2}
+  .header-actions .primary-button{grid-column:3/5;grid-row:2}
   .theme-toggle{width:44px;height:44px;min-height:44px;padding:10px!important}
   .project-title input{font-size:16px}
   .preview-area{min-height:500px}

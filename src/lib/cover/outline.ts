@@ -1,17 +1,17 @@
 import { Buffer } from 'buffer';
 import type { Font, PathCommand } from 'fontkit';
 import type { Label } from './render';
-import { ar } from '../i18n/messages';
+import { messages, type Language } from '../i18n/messages';
 
 let fontPromise: Promise<Font> | undefined;
-export async function loadOutlineFont(bytes?: Uint8Array): Promise<Font> {
+export async function loadOutlineFont(bytes?: Uint8Array, language:Language='ar'): Promise<Font> {
   if (bytes) {
     const fontkit = await import('fontkit');
     return fontkit.create(Buffer.from(bytes)) as Font;
   }
   fontPromise ??= (async()=>{
     const response = await fetch('/fonts/thmanyahsans-Regular.otf');
-    if (!response.ok) throw new Error(ar.fontLoadError);
+    if (!response.ok) throw new Error(messages[language].fontLoadError);
     const fontkit = await import('fontkit');
     return fontkit.create(Buffer.from(await response.arrayBuffer())) as Font;
   })();

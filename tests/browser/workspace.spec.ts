@@ -1,6 +1,15 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
+async function gotoReady(page:Page) {
+  await page.goto('/');
+  await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated','true');
+}
+async function reloadReady(page:Page) {
+  await page.reload();
+  await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated','true');
+}
+
 async function contrastRatio(page:Page, selector:string) {
   return page.locator(selector).first().evaluate(element=>{
     const style=getComputedStyle(element);
@@ -17,7 +26,7 @@ async function contrastRatio(page:Page, selector:string) {
 
 test('theme follows the system, saves an explicit choice, and leaves the document unchanged',async({page},testInfo)=>{
   await page.emulateMedia({colorScheme:'dark'});
-  await page.goto('/');
+  await gotoReady(page);
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
   await expect(page.locator('.wordmark-dark')).toBeVisible();
   await expect(page.getByRole('button',{name:'تفعيل الوضع الفاتح'})).toHaveAttribute('aria-pressed','true');
@@ -34,7 +43,7 @@ test('theme follows the system, saves an explicit choice, and leaves the documen
   await page.keyboard.press('Enter');
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
   expect(await page.evaluate(()=>localStorage.getItem('tajleed-theme'))).toBe('dark');
-  await page.reload();
+  await reloadReady(page);
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
   expect(await page.locator('.preview-document svg').evaluate(svg=>svg.outerHTML)).toBe(documentMarkup);
   await page.setViewportSize({width:390,height:844});
@@ -42,23 +51,25 @@ test('theme follows the system, saves an explicit choice, and leaves the documen
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.getByRole('button',{name:'تفعيل الوضع الفاتح'}).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme','light');
-  await page.reload();
+  await reloadReady(page);
   await expect(page.locator('html')).toHaveAttribute('data-theme','light');
 });
 
 test('Arabic workspace saves, reopens, duplicates and exports',async({page},testInfo)=>{
-  await page.goto('/');
+  await gotoReady(page);
   await expect(page.locator('html')).toHaveAttribute('lang','ar');
   await expect(page.locator('html')).toHaveAttribute('dir','rtl');
   await expect(page.locator('.brand-icon')).toBeVisible();
   expect(await page.locator('.brand-icon').evaluate(image=>(image as HTMLImageElement).naturalWidth)).toBe(192);
   await expect(page.getByRole('heading',{name:'معاينة القالب'})).toBeVisible();
-  await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
+  await expect(page.locator('.save-state')).toContainText('تعديلات غير محفوظة');
   await page.locator('#field-spine').fill('١٢');
   await expect(page.locator('.document-size')).toContainText('314');
-  await expect(page.getByRole('status').first()).toContainText('محفوظ محليًا');
+  await expect(page.getByRole('status').first()).toContainText('تعديلات غير محفوظة');
+  await page.getByRole('button',{name:'حفظ المشروع'}).click();
+  await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
   await page.screenshot({path:testInfo.outputPath('desktop.png'),fullPage:true});
-  await page.reload();
+  await reloadReady(page);
   await expect(page.locator('#field-spine')).toHaveValue('12');
   await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
   const exportTrigger=page.getByRole('button',{name:'تصدير القالب'});
@@ -84,6 +95,8 @@ test('Arabic workspace saves, reopens, duplicates and exports',async({page},test
   await page.getByRole('button',{name:'إنشاء نسخة'}).click();
   await expect(page.locator('#project-name')).toHaveValue(/نسخة/);
   await page.locator('#project-name').fill('غلاف مخصص');
+  await expect(page.getByRole('status').first()).toContainText('تعديلات غير محفوظة');
+  await page.getByRole('button',{name:'حفظ المشروع'}).click();
   await expect(page.getByRole('status').first()).toContainText('محفوظ محليًا');
   await page.getByRole('button',{name:'مشاريعي'}).click();
   await expect(page.locator('.project-list li')).toHaveCount(2);
@@ -98,10 +111,69 @@ test('Arabic workspace saves, reopens, duplicates and exports',async({page},test
   await expect(page.locator('.project-list li')).toHaveCount(1);
 });
 
+test('English UI keeps book direction separate and saves four margins with a printer slug',async({page},testInfo)=>{
+  await gotoReady(page);
+  await page.getByRole('button',{name:'Switch to English'}).click();
+  await expect(page.locator('html')).toHaveAttribute('lang','en');
+  await expect(page.locator('html')).toHaveAttribute('dir','ltr');
+  await expect(page.getByRole('heading',{name:'Template preview'})).toBeVisible();
+  await expect(page.locator('#opening')).toHaveValue('arabic');
+  await page.locator('#field-spine').fill('12');
+  await page.locator('[id="field-margins.top"]').fill('7');
+  await page.locator('[id="field-margins.right"]').fill('9');
+  await page.locator('[id="field-margins.bottom"]').fill('11');
+  await page.locator('[id="field-margins.left"]').fill('13');
+  await page.locator('[id="field-slug.height"]').fill('12');
+  await page.locator('#slug-text').fill('Printer proof 24');
+  await expect(page.locator('.document-size')).toContainText('314 × 228');
+  await expect(page.locator('.preview-document #printer-slug')).toBeVisible();
+  await expect(page.locator('.save-state')).toContainText('Unsaved changes');
+  await page.getByRole('button',{name:'Save project'}).click();
+  await expect(page.locator('.save-state')).toContainText('Saved locally');
+  await page.screenshot({path:testInfo.outputPath('english-desktop.png'),fullPage:true});
+  await reloadReady(page);
+  await expect(page.locator('html')).toHaveAttribute('lang','en');
+  await expect(page.locator('[id="field-margins.left"]')).toHaveValue('13');
+  await expect(page.locator('[id="field-slug.height"]')).toHaveValue('12');
+  await expect(page.locator('#slug-text')).toHaveValue('Printer proof 24');
+  await page.getByRole('button',{name:'Export template'}).click();
+  const download=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Download SVG'}).click();
+  const file=await download;
+  const svgPath=testInfo.outputPath('english-slug.svg');
+  await file.saveAs(svgPath);
+  const svg=await readFile(svgPath,'utf8');
+  expect(svg).toContain('height="228mm"');
+  expect(svg).toContain('id="printer-slug"');
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:testInfo.outputPath('english-mobile.png'),fullPage:true});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.getByRole('button',{name:'التبديل إلى العربية'}).click();
+  await expect(page.locator('html')).toHaveAttribute('dir','rtl');
+  await expect(page.locator('#opening')).toHaveValue('arabic');
+});
+
+test('manual save keeps edits in memory until saved and warns before switching projects',async({page})=>{
+  await gotoReady(page);
+  await page.locator('#field-spine').fill('12');
+  await expect(page.locator('.save-state')).toContainText('تعديلات غير محفوظة');
+  await page.getByRole('button',{name:'مشاريعي'}).click();
+  page.once('dialog',dialog=>dialog.dismiss());
+  await page.getByRole('button',{name:'مشروع جديد'}).click();
+  await expect(page.locator('#field-spine')).toHaveValue('12');
+  await page.getByRole('button',{name:'إغلاق'}).click();
+  await page.getByRole('button',{name:'حفظ المشروع'}).click();
+  await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
+  await page.getByRole('button',{name:'مشاريعي'}).click();
+  await page.getByRole('button',{name:'مشروع جديد'}).click();
+  await expect(page.locator('#field-spine')).toHaveValue('0');
+  await expect(page.locator('.save-state')).toContainText('تعديلات غير محفوظة');
+});
+
 test('mobile viewport keeps preview above settings and imports are validated',async({page},testInfo)=>{
   await page.setViewportSize({width:390,height:844});
-  await page.goto('/');
-  await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
+  await gotoReady(page);
+  await expect(page.locator('.save-state')).toContainText('تعديلات غير محفوظة');
   await expect(page.locator('.preview-area')).toBeVisible();
   await expect(page.locator('.settings')).toBeVisible();
   await expect(page.locator('.brand-icon')).toBeVisible();
@@ -125,16 +197,19 @@ test('mobile viewport keeps preview above settings and imports are validated',as
 
 test('storage failure leaves the working project usable',async({page})=>{
   await page.addInitScript(()=>{Object.defineProperty(window,'indexedDB',{value:{open(){throw new Error('blocked')}}})});
-  await page.goto('/');
+  await gotoReady(page);
   await expect(page.getByRole('status').first()).toContainText('تعذر الحفظ محليًا');
   await page.locator('#field-spine').fill('12');
   await expect(page.locator('.document-size')).toContainText('314');
+  await page.getByRole('button',{name:'حفظ المشروع'}).click();
+  await expect(page.getByRole('status').first()).toContainText('تعذر الحفظ محليًا');
 });
 
 test('project backup imports as a separate project without replacing the original',async({page},testInfo)=>{
-  await page.goto('/');
-  await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
+  await gotoReady(page);
+  await expect(page.locator('.save-state')).toContainText('تعديلات غير محفوظة');
   await page.locator('#field-spine').fill('12');
+  await page.getByRole('button',{name:'حفظ المشروع'}).click();
   await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
   await page.getByRole('button',{name:'تصدير القالب'}).click();
   const backupDownload=page.waitForEvent('download');
@@ -145,14 +220,15 @@ test('project backup imports as a separate project without replacing the origina
   await page.getByRole('button',{name:'مشاريعي'}).click();
   await page.locator('input[type=file]').setInputFiles(backupPath);
   await expect(page.locator('#project-name')).toHaveValue(/نسخة/);
+  await page.getByRole('button',{name:'حفظ المشروع'}).click();
   await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
   await page.getByRole('button',{name:'مشاريعي'}).click();
   await expect(page.locator('.project-list li')).toHaveCount(2);
 });
 
 test('ISBN-13 barcode rejects bad checksums and exports vector bars',async({page},testInfo)=>{
-  await page.goto('/');
-  await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
+  await gotoReady(page);
+  await expect(page.locator('.save-state')).toContainText('تعديلات غير محفوظة');
   await page.locator('#field-spine').fill('12');
   await page.locator('details').last().locator('summary').click();
   await page.getByRole('checkbox',{name:'إضافة باركود ISBN-13'}).check();

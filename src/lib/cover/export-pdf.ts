@@ -2,16 +2,17 @@ import { PDFDocument, rgb } from 'pdf-lib';
 import { calculateGeometry } from './geometry';
 import { isbn13Bits } from './isbn';
 import { loadOutlineFont, outlineLabel } from './outline';
-import { labelsFor } from './render';
+import { labelsFor, slugLabelFor } from './render';
 import { mmToPt } from './numbers';
 import { validateProject } from './validation';
 import type { CoverProject, Rect } from './types';
+import type { Language } from '../i18n/messages';
 
 const cocoa=rgb(87/255,62/255,65/255);
 const coral=rgb(217/255,123/255,126/255);
 const muted=rgb(0.55,0.48,0.48);
-export async function exportPdf(project: CoverProject, fontBytes?: Uint8Array): Promise<Uint8Array> {
-  const issues=validateProject(project);
+export async function exportPdf(project: CoverProject, fontBytes?: Uint8Array, language:Language='ar'): Promise<Uint8Array> {
+  const issues=validateProject(project,language);
   if (issues.length) throw new Error(issues[0].message);
   const g=calculateGeometry(project);
   const pdf=await PDFDocument.create();
@@ -19,17 +20,19 @@ export async function exportPdf(project: CoverProject, fontBytes?: Uint8Array): 
   pdf.setCreator('Tajleed');
   const page=pdf.addPage([mmToPt(g.width),mmToPt(g.height)]);
   page.setTrimBox(mmToPt(g.cut.x),mmToPt(g.height-g.cut.y-g.cut.height),mmToPt(g.cut.width),mmToPt(g.cut.height));
-  page.setBleedBox(0,0,mmToPt(g.width),mmToPt(g.height));
+  page.setBleedBox(0,mmToPt(g.slug?.height ?? 0),mmToPt(g.width),mmToPt(g.bleedBounds.height));
   const rect=(r:Rect,color=coral,width=0.3)=>page.drawRectangle({x:mmToPt(r.x),y:mmToPt(g.height-r.y-r.height),width:mmToPt(r.width),height:mmToPt(r.height),borderColor:color,borderWidth:mmToPt(width),opacity:0,borderOpacity:1});
-  rect({x:0,y:0,width:g.width,height:g.height},cocoa);
+  rect(g.bleedBounds,cocoa);
   rect(g.cut);
+  if (g.slug) rect(g.slug,cocoa,0.25);
   if (project.exportOptions.guides) {
     for (const line of g.lines) page.drawLine({start:{x:mmToPt(line.x1),y:mmToPt(g.height-line.y1)},end:{x:mmToPt(line.x2),y:mmToPt(g.height-line.y2)},thickness:mmToPt(line.kind==='trim'?0.3:0.2),color:line.kind==='trim'?coral:muted,dashArray:line.kind==='trim'?undefined:[mmToPt(1.5),mmToPt(1)]});
     for (const panel of g.panels) if (panel.safe) rect(panel.safe,muted,0.18);
   }
-  if (project.exportOptions.measurements) {
-    const font=await loadOutlineFont(fontBytes);
-    for (const label of labelsFor(project,g)) {
+  if (project.exportOptions.measurements || g.slug) {
+    const font=await loadOutlineFont(fontBytes,language);
+    const slugLabel=slugLabelFor(project,g,language);
+    for (const label of [...(project.exportOptions.measurements ? labelsFor(project,g,language) : []),...(slugLabel ? [slugLabel] : [])]) {
       for (const glyph of outlineLabel(font,label).glyphs) {
         page.drawSvgPath(glyph.pdfPath,{x:mmToPt(glyph.x),y:mmToPt(g.height-glyph.y),scale:mmToPt(glyph.scale),color:cocoa});
       }
@@ -44,7 +47,7 @@ export async function exportPdf(project: CoverProject, fontBytes?: Uint8Array): 
   }
   if (project.exportOptions.marks) {
     const xs=[g.cut.x,g.cut.x+g.cut.width];
-    for (const x of xs) for (const [y1,y2] of [[0,g.cut.y-0.6],[g.cut.y+g.cut.height+0.6,g.height]]) page.drawLine({start:{x:mmToPt(x),y:mmToPt(g.height-y1)},end:{x:mmToPt(x),y:mmToPt(g.height-y2)},thickness:mmToPt(0.2),color:cocoa});
+    for (const x of xs) for (const [y1,y2] of [[0,g.cut.y-0.6],[g.cut.y+g.cut.height+0.6,g.bleedBounds.height]]) page.drawLine({start:{x:mmToPt(x),y:mmToPt(g.height-y1)},end:{x:mmToPt(x),y:mmToPt(g.height-y2)},thickness:mmToPt(0.2),color:cocoa});
     const ys=[g.cut.y,g.cut.y+g.cut.height];
     for (const y of ys) for (const [x1,x2] of [[0,g.cut.x-0.6],[g.cut.x+g.cut.width+0.6,g.width]]) page.drawLine({start:{x:mmToPt(x1),y:mmToPt(g.height-y)},end:{x:mmToPt(x2),y:mmToPt(g.height-y)},thickness:mmToPt(0.2),color:cocoa});
   }

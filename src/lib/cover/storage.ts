@@ -1,5 +1,5 @@
 import { openDB, type DBSchema } from 'idb';
-import { projectSchema } from './schema';
+import { migrateProject, projectSchema } from './schema';
 import type { CoverProject } from './types';
 
 interface TajleedDB extends DBSchema {
@@ -16,12 +16,14 @@ const database = () => openDB<TajleedDB>('tajleed', 1, {
 export async function listProjects(): Promise<CoverProject[]> {
   const db = await database();
   const values = await db.getAll('projects');
-  return values.flatMap((value)=> {const result=projectSchema.safeParse(value); return result.success ? [result.data as CoverProject] : [];}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  return values.flatMap((value)=> {try {return [migrateProject(value) as CoverProject]} catch {return []}}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
 }
 export async function saveProject(project: CoverProject): Promise<void> {
   const db = await database();
-  await db.put('projects', projectSchema.parse(project) as CoverProject);
-  await db.put('meta',project.id,'lastProject');
+  const tx=db.transaction(['projects','meta'],'readwrite');
+  await tx.objectStore('projects').put(projectSchema.parse(project) as CoverProject);
+  await tx.objectStore('meta').put(project.id,'lastProject');
+  await tx.done;
 }
 export async function deleteProject(id: string): Promise<void> {
   const db=await database();
