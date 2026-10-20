@@ -8,7 +8,7 @@ Node.js 24.13.1 and npm 11.8.0 are the project baseline. Run npm ci, then npm ru
 
 `npm run build` prerenders the browser-only app into `dist/`. The Sites deployment reads that directory through `.openai/hosting.json`.
 
-New projects begin with editable A5 board or trim dimensions, 3 mm bleed, and 5 mm safe margins on each side. Enter the printer's spine and structural measurements before exporting. You can add a printer slug outside the bleed with its own height and text. Press **حفظ المشروع** to store changes in IndexedDB; the app warns before discarding unsaved work. Use **مشاريعي** to create, duplicate, reopen, or delete projects; download a .tajleed.json file for backup and transfer. Older version 1 project files are migrated when imported.
+New projects begin with editable A5 board or trim dimensions, 3 mm bleed, and 5 mm safe margins on each side. Enter the printer's spine and structural measurements before exporting. You can add a printer slug outside the bleed with its own height and text. Press **حفظ المشروع** to store changes in IndexedDB; the app warns before discarding unsaved work. Press **مشروع جديد** in the header to start a fresh cover. Use **مشاريعي** to duplicate, reopen, or delete saved projects; download a .tajleed.json file for backup and transfer. Older version 1 project files are migrated when imported.
 
 Use the header language button to switch between Arabic and English. This changes the interface and template labels, independently of book opening direction. The language preference is stored on this device.
 

@@ -116,6 +116,7 @@ test('English UI keeps book direction separate and saves four margins with a pri
   await page.getByRole('button',{name:'Switch to English'}).click();
   await expect(page.locator('html')).toHaveAttribute('lang','en');
   await expect(page.locator('html')).toHaveAttribute('dir','ltr');
+  await expect(page.getByRole('button',{name:'New project'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Template preview'})).toBeVisible();
   await expect(page.locator('#opening')).toHaveValue('arabic');
   await page.locator('#field-spine').fill('12');
@@ -162,16 +163,21 @@ test('manual save keeps edits in memory until saved and warns before switching p
   await expect(page.getByText('تعرض المعاينة آخر قيم صالحة أثناء تصحيح الحقول.')).toBeVisible();
   await page.locator('[id="field-margins.top"]').fill('5');
   await expect(page.locator('.save-state')).toContainText('تعديلات غير محفوظة');
-  await page.getByRole('button',{name:'مشاريعي'}).click();
+  const newProject=page.getByRole('button',{name:'مشروع جديد'});
+  await expect(newProject).toBeVisible();
   page.once('dialog',dialog=>dialog.dismiss());
-  await page.getByRole('button',{name:'مشروع جديد'}).click();
+  await newProject.click();
   await expect(page.locator('#field-spine')).toHaveValue('12');
-  await page.getByRole('button',{name:'إغلاق'}).click();
+  await expect(page.locator('dialog.project-dialog')).not.toBeVisible();
   await page.getByRole('button',{name:'حفظ المشروع'}).click();
   await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
   await page.getByRole('button',{name:'مشاريعي'}).click();
-  await page.getByRole('button',{name:'مشروع جديد'}).click();
+  await expect(page.locator('dialog.project-dialog').getByRole('button',{name:'مشروع جديد'})).toHaveCount(0);
+  await page.getByRole('button',{name:'إغلاق'}).click();
+  await newProject.focus();
+  await page.keyboard.press('Enter');
   await expect(page.locator('#field-spine')).toHaveValue('0');
+  await expect(page.locator('#project-name')).toBeFocused();
   await expect(page.locator('.save-state')).toContainText('تعديلات غير محفوظة');
   expect(warnings.some(message=>message.includes('state_proxy_equality_mismatch'))).toBe(false);
 });
@@ -183,6 +189,10 @@ test('mobile viewport keeps preview above settings and imports are validated',as
   await expect(page.locator('.preview-area')).toBeVisible();
   await expect(page.locator('.settings')).toBeVisible();
   await expect(page.locator('.brand-icon')).toBeVisible();
+  const newProject=page.getByRole('button',{name:'مشروع جديد'});
+  await expect(newProject).toBeVisible();
+  expect((await newProject.boundingBox())!.height).toBeLessThanOrEqual(44);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const previewBox=await page.locator('.preview-area').boundingBox();
   const settingsBox=await page.locator('.settings').boundingBox();
   expect(previewBox!.y).toBeLessThan(settingsBox!.y);
@@ -199,6 +209,12 @@ test('mobile viewport keeps preview above settings and imports are validated',as
   await page.getByRole('button',{name:'مشاريعي'}).click();
   await page.locator('input[type=file]').setInputFiles({name:'broken.tajleed.json',mimeType:'application/json',buffer:Buffer.from('{"format":"tajleed-project","version":999}')});
   await expect(page.getByText('تعذر استيراد الملف. تحقق من بنية المشروع وإصداره.')).toBeVisible();
+  await page.getByRole('button',{name:'إغلاق'}).click();
+  for (const width of [850,900,1024]) {
+    await page.setViewportSize({width,height:844});
+    await expect(newProject).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
 });
 
 test('storage failure leaves the working project usable',async({page})=>{

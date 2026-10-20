@@ -147,7 +147,7 @@ Follow the applicable local skill's bounded review process. Fix concrete defects
 
 ## 9. Approved first-release workspace decisions
 
-The user approved an Arabic-first task workspace at the root route. Its compact header contains the Tajleed wordmark, project name, local save status, **مشاريعي**, and **تصدير القالب**. Settings sit on the right of a prominent cover preview on desktop; the preview sits above expandable settings on mobile. Book opening direction is a separate control from interface language. Preview zoom, pan, fit, and guide visibility affect only the screen, not document dimensions or export options.
+The user approved an Arabic-first task workspace at the root route. Its compact header contains the Tajleed wordmark, project name, local save status, **مشروع جديد**, **مشاريعي**, and **تصدير القالب**. New project is directly visible in the header on desktop and mobile, while My Projects opens saved-project management. Settings sit on the right of a prominent cover preview on desktop; the preview sits above expandable settings on mobile. Book opening direction is a separate control from interface language. Preview zoom, pan, fit, and guide visibility affect only the screen, not document dimensions or export options.
 
 The exact sidebar width, field spacing, surface tint, and control measurements in the implementation are provisional defaults that can be adjusted after usability evidence. The approved logo, font families and weights, palette, Arabic priority, and template workflow remain durable rules.
 

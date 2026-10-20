@@ -108,11 +108,14 @@
     saveState='saved';saveError='';
     exportOpen=false; projectDialog.close(); zoom=1;pan={x:0,y:0};
   }
-  function createNew() {
+  async function createNew() {
     if (!confirmDiscard()) return;
     const next=newProject(t.projectFallback);
-    project=next; previewProject=next; syncDrafts(); projectDialog.close();
+    project=next; previewProject=next; syncDrafts();
     saveState='unsaved';saveError='';
+    exportOpen=false; zoom=1; pan={x:0,y:0};
+    await tick();
+    document.getElementById('project-name')?.focus();
   }
   function duplicateCurrent() {
     if (!confirmDiscard()) return;
@@ -290,6 +293,7 @@
       </button>
       <button class="save-button" disabled={saveState==='saved'||saveState==='saving'||Object.keys(draftErrors).length>0} onclick={saveCurrent}>{t.save}</button>
       <button class="text-button" onclick={()=>projectDialog.showModal()}>{t.projects}</button>
+      <button class="new-project-button" onclick={createNew}><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>{t.newProject}</button>
       <button bind:this={exportTrigger} class="primary-button" aria-controls="export-panel" aria-expanded={exportOpen} onclick={toggleExport}>{t.exportTemplate}</button>
     </div>
   </header>
@@ -366,7 +370,7 @@
 
 <dialog bind:this={projectDialog} class="project-dialog" aria-labelledby="projects-heading" onclose={()=>importMessage=''}>
   <div class="dialog-head"><h2 id="projects-heading">{t.projectList}</h2><button class="icon-button" aria-label={t.close} onclick={()=>projectDialog.close()}>×</button></div>
-  <div class="dialog-actions"><button class="primary-button" onclick={createNew}>{t.newProject}</button><button onclick={duplicateCurrent}>{t.duplicate}</button><button onclick={()=>importInput.click()}>{t.import}</button><input bind:this={importInput} type="file" accept=".json,.tajleed.json,application/json" class="sr-only" onchange={importFile} /></div>
+  <div class="dialog-actions"><button onclick={duplicateCurrent}>{t.duplicate}</button><button onclick={()=>importInput.click()}>{t.import}</button><input bind:this={importInput} type="file" accept=".json,.tajleed.json,application/json" class="sr-only" onchange={importFile} /></div>
   {#if importMessage}<p role="status" class="notice">{t[importMessage]}</p>{/if}
   {#if projects.length===0}<p class="empty-message">{t.noProjects}</p>{/if}
   <ul class="project-list">{#each projects as item (item.id)}<li><div><strong>{item.name}</strong><small>{item.spec.type==='paperback'?t.paperback:item.spec.type==='hardcover'?t.hardcover:t.jacket} · <bdi>{new Intl.DateTimeFormat(numberLocale,{dateStyle:'medium'}).format(new Date(item.updatedAt))}</bdi></small></div><div class="row-actions"><button onclick={()=>openProject(item)}>{t.open}</button><button class="danger-button" onclick={()=>removeProject(item)}>{t.delete}</button></div></li>{/each}</ul>

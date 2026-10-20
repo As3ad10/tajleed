@@ -67,6 +67,9 @@ input[type=checkbox]{width:18px;height:18px;min-height:18px;padding:0;accent-col
 .save-state.save-unsaved{color:var(--warning-text)}
 .header-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;white-space:nowrap}
 .text-button{border-color:transparent}
+.new-project-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-color:var(--accent);background:var(--surface);color:var(--text)}
+.new-project-button:hover{background:var(--accent-soft)}
+.new-project-button svg{width:16px;height:16px;flex:none}
 .language-toggle{min-width:46px;padding-inline:8px;border-color:var(--border);background:var(--surface-muted);font-size:13px}
 .save-button{background:var(--accent-soft);border-color:var(--accent);color:var(--text)}
 .save-button:hover{background:var(--surface-muted)}
@@ -151,14 +154,20 @@ input[type=checkbox]{width:18px;height:18px;min-height:18px;padding:0;accent-col
 .danger-button{color:var(--danger)}
 .empty-message{color:var(--muted);font-size:14px;margin:28px 0}
 
-@media(max-width:850px){
-  .topbar{grid-template-columns:1fr auto;height:auto;min-height:70px;padding:10px 16px;gap:2px 8px}
-  .brand{grid-column:1}.brand img{width:77px;height:41px}.brand .brand-icon{width:38px;height:38px}
+@media(max-width:1150px) and (min-width:851px){
+  .topbar{grid-template-columns:minmax(120px,1fr) minmax(140px,220px) auto;gap:12px;padding-inline:16px}
   .brand-subtitle,.brand-divider{display:none}
-  .project-title{grid-column:1;grid-row:2;text-align:right}
-  .project-title input{text-align:right;font-size:17px;padding-inline:0}
-  .save-state{text-align:right}
-  .header-actions{grid-column:2;grid-row:1/3}
+  .header-actions{gap:5px}
+  .header-actions button{padding-inline:10px}
+}
+@media(max-width:850px){
+  .topbar{grid-template-columns:auto minmax(0,1fr);height:auto;min-height:70px;padding:10px 16px;gap:8px 16px}
+  .brand{grid-column:1;grid-row:1}.brand img{width:77px;height:41px}.brand .brand-icon{width:38px;height:38px}
+  .brand-subtitle,.brand-divider{display:none}
+  .project-title{grid-column:2;grid-row:1;text-align:start}
+  .project-title input{text-align:start;font-size:17px;padding-inline:0}
+  .save-state{text-align:start}
+  .header-actions{grid-column:1/-1;grid-row:2;justify-content:flex-start}
   .header-actions button{padding-inline:10px;min-height:44px}
   .theme-toggle{width:44px;height:44px;padding:10px!important}
   .preview-toolbar button,.icon-button,.row-actions button{min-height:44px}
@@ -182,7 +191,8 @@ input[type=checkbox]{width:18px;height:18px;min-height:18px;padding:0;accent-col
   .theme-toggle{grid-column:2;grid-row:1}
   .save-button{grid-column:3/5;grid-row:1}
   .header-actions .text-button{grid-column:1/3;grid-row:2}
-  .header-actions .primary-button{grid-column:3/5;grid-row:2}
+  .new-project-button{grid-column:3;grid-row:2}
+  .header-actions .primary-button{grid-column:4;grid-row:2}
   .theme-toggle{width:44px;height:44px;min-height:44px;padding:10px!important}
   .project-title input{font-size:16px}
   .preview-area{min-height:500px}
