@@ -6,7 +6,7 @@ export const localeMeta = {
 export const ar = {
   appName:'تجليد', projectFallback:'غلاف جديد', projects:'مشاريعي', exportTemplate:'تصدير القالب', darkMode:'تفعيل الوضع الداكن', lightMode:'تفعيل الوضع الفاتح',
   copySuffix:'نسخة', metaDescription:'مساحة عمل عربية لإنشاء قوالب أغلفة الكتب بمقاسات دقيقة.', settingsLabel:'إعدادات الغلاف', previewToolsLabel:'أدوات المعاينة', templateImageLabel:'قالب غلاف كتاب', templateTitle:'قالب', fontLoadError:'تعذر تحميل خط التعليقات.',
-  save:'حفظ المشروع', saveReady:'محفوظ محليًا', savePending:'تعديلات غير محفوظة', saving:'جارٍ الحفظ…', saveFailed:'تعذر الحفظ محليًا؛ عملك محفوظ في هذه الجلسة.', saveNameError:'أدخل اسمًا للمشروع قبل الحفظ.', unsavedConfirm:'لديك تعديلات غير محفوظة. هل تريد المتابعة وفقدان هذه التعديلات؟', languageToggle:'Switch to English',
+  save:'حفظ المشروع', undo:'تراجع', redo:'إعادة', saveReady:'محفوظ محليًا', savePending:'تعديلات غير محفوظة', saving:'جارٍ الحفظ…', saveFailed:'تعذر الحفظ محليًا؛ عملك محفوظ في هذه الجلسة.', saveNameError:'أدخل اسمًا للمشروع قبل الحفظ.', unsavedConfirm:'لديك تعديلات غير محفوظة. هل تريد المتابعة وفقدان هذه التعديلات؟', languageToggle:'Switch to English',
   startingValues:'قيم ابتدائية قابلة للتعديل', build:'بناء الغلاف', dimensions:'الأبعاد والورق', guides:'إرشادات الطباعة', barcode:'باركود ISBN',
   paperback:'غلاف ورقي', hardcover:'غلاف مقوّى', jacket:'غلاف واقٍ', arabicOpening:'فتح عربي · الأمام يسار الكعب', englishOpening:'فتح إنجليزي · الأمام يمين الكعب',
   construction:'نوع الغلاف', opening:'اتجاه فتح الكتاب', trimWidth:'عرض اللوح', trimHeight:'ارتفاع اللوح', spine:'عرض الكعب', bleed:'نزف الطباعة', safe:'الهامش الآمن',
@@ -35,7 +35,7 @@ export type MessageKey = keyof typeof ar;
 export const en: Record<MessageKey, string> = {
   appName:'Tajleed', projectFallback:'New cover', projects:'My projects', exportTemplate:'Export template', darkMode:'Use dark mode', lightMode:'Use light mode',
   copySuffix:'copy', metaDescription:'A workspace for precise book cover templates.', settingsLabel:'Cover settings', previewToolsLabel:'Preview tools', templateImageLabel:'Book cover template', templateTitle:'Template', fontLoadError:'Could not load the annotation font.',
-  save:'Save project', saveReady:'Saved locally', savePending:'Unsaved changes', saving:'Saving…', saveFailed:'Could not save locally; your work remains in this session.', saveNameError:'Enter a project name before saving.', unsavedConfirm:'You have unsaved changes. Continue and discard them?', languageToggle:'التبديل إلى العربية',
+  save:'Save project', undo:'Undo', redo:'Redo', saveReady:'Saved locally', savePending:'Unsaved changes', saving:'Saving…', saveFailed:'Could not save locally; your work remains in this session.', saveNameError:'Enter a project name before saving.', unsavedConfirm:'You have unsaved changes. Continue and discard them?', languageToggle:'التبديل إلى العربية',
   startingValues:'Editable starting values', build:'Cover construction', dimensions:'Dimensions and paper', guides:'Print guides', barcode:'ISBN barcode',
   paperback:'Paperback', hardcover:'Hardcover', jacket:'Dust jacket', arabicOpening:'Arabic opening · front left of spine', englishOpening:'English opening · front right of spine',
   construction:'Cover type', opening:'Book opening direction', trimWidth:'Panel width', trimHeight:'Panel height', spine:'Spine width', bleed:'Bleed', safe:'Safe margin',

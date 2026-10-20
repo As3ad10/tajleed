@@ -10,6 +10,8 @@ Node.js 24.13.1 and npm 11.8.0 are the project baseline. Run npm ci, then npm ru
 
 New projects begin with editable A5 board or trim dimensions, 3 mm bleed, and 5 mm safe margins on each side. Enter the printer's spine and structural measurements before exporting. You can add a printer slug outside the bleed with its own height and text. Press **حفظ المشروع** to store changes in IndexedDB; the app warns before discarding unsaved work. Press **مشروع جديد** in the header to start a fresh cover. Use **مشاريعي** to duplicate, reopen, or delete saved projects; download a .tajleed.json file for backup and transfer. Older version 1 project files are migrated when imported.
 
+Use the Undo and Redo buttons beside Save to step through edits in the current project. Ctrl/Cmd+Z undoes; Ctrl/Cmd+Shift+Z or Ctrl+Y redoes. Consecutive typing in one field is one step. History holds up to 100 steps during the current session and resets when you switch projects or reload.
+
 Use the header language button to switch between Arabic and English. This changes the interface and template labels, independently of book opening direction. The language preference is stored on this device.
 
 The workspace follows the device's light or dark appearance until you choose a theme from the header. The chosen theme is stored locally and does not affect exported templates.

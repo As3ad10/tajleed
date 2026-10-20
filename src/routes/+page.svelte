@@ -10,13 +10,19 @@
   import { deleteProject, lastProjectId, listProjects, saveProject } from '../lib/cover/storage';
   import type { Construction, CoverProject, CoverSpec, Opening } from '../lib/cover/types';
 
+  type HistoryEntry = { project:CoverProject; previewProject:CoverProject; drafts:Record<string,string>; draftErrors:Record<string,string> };
+  const historyLimit=100;
   let project = $state<CoverProject>(newProject());
   let previewProject = $state<CoverProject>(newProject());
   let projects = $state<CoverProject[]>([]);
   let hydrated = $state(false);
   let drafts = $state<Record<string,string>>({});
   let draftErrors = $state<Record<string,string>>({});
-  let revision = 0;
+  let saveInFlight = $state(false);
+  let past = $state<HistoryEntry[]>([]);
+  let future = $state<HistoryEntry[]>([]);
+  let historyGroup: string | null = null;
+  let savedFingerprint: string | null = null;
   let saveState = $state<'saved'|'unsaved'|'saving'|'error'>('unsaved');
   let saveError = $state<'saveNameError'|'saveFailed'|''>('');
   let language = $state<Language>('ar');
@@ -51,46 +57,83 @@
     for (const [k,v] of Object.entries(project.barcode)) if (typeof v==='number') drafts['barcode.'+k]=String(v);
     draftErrors = {};
   }
-  function setProject(next: CoverProject) {
+  function historyEntry():HistoryEntry {
+    return {project:JSON.parse(JSON.stringify(project)) as CoverProject,previewProject:JSON.parse(JSON.stringify(previewProject)) as CoverProject,drafts:{...drafts},draftErrors:{...draftErrors}};
+  }
+  function fingerprint(entry:HistoryEntry) {return JSON.stringify({project:entry.project,drafts:entry.drafts,draftErrors:entry.draftErrors})}
+  function rememberChange(group?:string) {
+    if (!group || historyGroup!==group) past=[...past.slice(-(historyLimit-1)),historyEntry()];
+    future=[];
+    historyGroup=group??null;
+  }
+  function resetHistory(saved=false) {
+    past=[];future=[];historyGroup=null;
+    savedFingerprint=saved?fingerprint(historyEntry()):null;
+  }
+  function restoreHistory(entry:HistoryEntry) {
+    project=entry.project;previewProject=entry.previewProject;
+    drafts=entry.drafts;draftErrors=entry.draftErrors;
+    saveError='';historyGroup=null;
+    saveState=savedFingerprint===fingerprint(entry)?'saved':'unsaved';
+  }
+  function undo() {
+    if (!past.length) return;
+    const previous=past.at(-1)!;
+    future=[...future,historyEntry()];past=past.slice(0,-1);
+    restoreHistory(previous);
+  }
+  function redo() {
+    if (!future.length) return;
+    const next=future.at(-1)!;
+    past=[...past.slice(-(historyLimit-1)),historyEntry()];future=future.slice(0,-1);
+    restoreHistory(next);
+  }
+  function setProject(next: CoverProject, group?:string|false) {
+    if (group!==false) rememberChange(group);
     project = {...next,updatedAt:new Date().toISOString()};
-    revision++;
     saveState='unsaved';saveError='';
   }
   function updateSpecField(key:string, value:string) {
+    if (drafts[key]===value) return;
+    rememberChange('spec.'+key);
     drafts = {...drafts,[key]:value};
     const parsed=parseLocalizedNumber(value);
-    revision++;
     saveState='unsaved';
     if (parsed===null) {draftErrors={...draftErrors,[key]:'fieldNumber'};return;}
     if (key!=='adjustment' && parsed<0) {draftErrors={...draftErrors,[key]:'fieldNonnegative'};return;}
     if (['width','height','bleed'].includes(key) && parsed===0) {draftErrors={...draftErrors,[key]:'fieldPositive'};return;}
     const nextErrors={...draftErrors}; delete nextErrors[key]; draftErrors=nextErrors;
-    if (key.startsWith('margins.')) setProject({...project,spec:{...project.spec,margins:{...project.spec.margins,[key.slice(8)]:parsed}} as CoverSpec});
-    else if (key==='slug.height') setProject({...project,slug:{...project.slug,height:parsed}});
-    else setProject({...project,spec:{...project.spec,[key]:parsed} as CoverSpec});
+    if (key.startsWith('margins.')) setProject({...project,spec:{...project.spec,margins:{...project.spec.margins,[key.slice(8)]:parsed}} as CoverSpec},false);
+    else if (key==='slug.height') setProject({...project,slug:{...project.slug,height:parsed}},false);
+    else setProject({...project,spec:{...project.spec,[key]:parsed} as CoverSpec},false);
   }
   function updateBarcodeField(key:string,value:string) {
+    if (drafts['barcode.'+key]===value) return;
+    rememberChange('barcode.'+key);
     drafts={...drafts,['barcode.'+key]:value};
     const parsed=parseLocalizedNumber(value);
-    revision++;
     saveState='unsaved';
     if (parsed===null || parsed<0) {draftErrors={...draftErrors,['barcode.'+key]:'fieldNumber'};return;}
     const nextErrors={...draftErrors};delete nextErrors['barcode.'+key];draftErrors=nextErrors;
-    setProject({...project,barcode:{...project.barcode,[key]:parsed}});
+    setProject({...project,barcode:{...project.barcode,[key]:parsed}},false);
   }
   function errorFor(key:string) {return draftErrors[key] ? t[draftErrors[key] as MessageKey] : issues.find(i=>i.field===key)?.message ?? ''}
   function confirmDiscard() {return saveState==='saved' || window.confirm(t.unsavedConfirm)}
   async function saveCurrent() {
-    if (saveState==='saving' || Object.keys(draftErrors).length) return;
+    if (saveInFlight || Object.keys(draftErrors).length) return;
     if (!project.name.trim()) {saveError='saveNameError';saveState='error';return;}
     const snapshot=JSON.parse(JSON.stringify(project)) as CoverProject;
-    const savingRevision=revision;
-    saveState='saving';saveError='';
+    const savingFingerprint=fingerprint(historyEntry());
+    saveInFlight=true;saveState='saving';saveError='';
     try {
       await saveProject(snapshot);
       projects=[snapshot,...projects.filter(p=>p.id!==snapshot.id)].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
-      saveState=revision===savingRevision && Object.keys(draftErrors).length===0?'saved':'unsaved';
-    } catch {saveState='error';saveError='saveFailed'}
+      if (project.id===snapshot.id) {
+        savedFingerprint=savingFingerprint;
+        saveState=fingerprint(historyEntry())===savedFingerprint?'saved':'unsaved';
+      }
+    } catch {if (project.id===snapshot.id) {saveState='error';saveError='saveFailed'}}
+    finally {saveInFlight=false}
   }
   function toggleLanguage() {
     language=language==='ar'?'en':'ar';
@@ -106,6 +149,7 @@
     if (!confirmDiscard()) return;
     project=JSON.parse(JSON.stringify(next)) as CoverProject; previewProject=project; syncDrafts();
     saveState='saved';saveError='';
+    resetHistory(true);
     exportOpen=false; projectDialog.close(); zoom=1;pan={x:0,y:0};
   }
   async function createNew() {
@@ -113,6 +157,7 @@
     const next=newProject(t.projectFallback);
     project=next; previewProject=next; syncDrafts();
     saveState='unsaved';saveError='';
+    resetHistory();
     exportOpen=false; zoom=1; pan={x:0,y:0};
     await tick();
     document.getElementById('project-name')?.focus();
@@ -122,6 +167,7 @@
     const copy=duplicateProject(project,t.copySuffix);
     project=copy;previewProject=copy;syncDrafts();projectDialog.close();
     saveState='unsaved';saveError='';
+    resetHistory();
   }
   async function removeProject(item:CoverProject) {
     if (project.id===item.id && !confirmDiscard()) return;
@@ -132,6 +178,7 @@
       if (project.id===item.id) {
         const next=projects[0] ?? newProject();
         project=next;previewProject=next;syncDrafts();saveState=projects.length?'saved':'unsaved';
+        resetHistory(projects.length>0);
       }
     } catch {saveState='error'}
   }
@@ -143,6 +190,7 @@
       if (!confirmDiscard()) {input.value='';return;}
       const next=projects.some(p=>p.id===imported.id)?duplicateProject(imported,t.copySuffix):imported;
       project=next;previewProject=next;syncDrafts();saveState='unsaved';saveError='';
+      resetHistory();
       importMessage='importSuccess'; projectDialog.close();
     } catch {importMessage='importError'}
     input.value='';
@@ -180,6 +228,17 @@
     (exportPanel?.querySelector<HTMLButtonElement>('.export-actions button:not([disabled])') ?? exportPanel?.querySelector<HTMLButtonElement>('.icon-button'))?.focus();
   }
   function onWindowKeydown(event:KeyboardEvent) {
+    if (!projectDialog?.open && !event.altKey && (event.ctrlKey || event.metaKey)) {
+      const key=event.key.toLowerCase();
+      if (key==='z' || key==='y') {
+        const redoShortcut=key==='y' || event.shiftKey;
+        if ((redoShortcut && future.length) || (!redoShortcut && past.length)) {
+          event.preventDefault();
+          if (redoShortcut) redo(); else undo();
+        }
+        return;
+      }
+    }
     if (exportOpen && event.key==='Escape' && !projectDialog?.open) {
       event.preventDefault();
       closeExport(true);
@@ -251,6 +310,7 @@
         if (saved) {project=saved;previewProject=saved;syncDrafts()}
         else {project=newProject(t.projectFallback);previewProject=project;syncDrafts()}
         saveState=saved?'saved':'unsaved';
+        resetHistory(!!saved);
       } catch {saveState='error'}
       hydrated=true;updateFit();
     })();
@@ -282,16 +342,18 @@
   <meta name="description" content={t.metaDescription} />
 </svelte:head>
 
-<div class="app-shell" dir={localeMeta[language].direction} data-hydrated={hydrated} inert={!hydrated}>
+<div class="app-shell" dir={localeMeta[language].direction} data-hydrated={hydrated} inert={!hydrated} onfocusout={(event)=>{if(event.target instanceof HTMLInputElement) historyGroup=null}}>
   <header class="topbar">
     <div class="brand"><img class="brand-icon" src="/brand/icon-192.png" alt="" /><img class="wordmark-light" src="/brand/tajleed-wordmark-cocoa.svg" alt={t.appName} /><img class="wordmark-dark" src="/brand/tajleed-wordmark-white.svg" alt={t.appName} /><span class="brand-divider"></span><span class="brand-subtitle">{t.preview}</span></div>
-    <div class="project-title"><label for="project-name" class="sr-only">{t.projectName}</label><input id="project-name" value={project.name} maxlength="120" oninput={(e)=>setProject({...project,name:e.currentTarget.value})} /><span class:save-error={saveState==='error'} class:save-unsaved={saveState==='unsaved'} class="save-state" role="status">{saveState==='saved'?t.saveReady:saveState==='saving'?t.saving:saveState==='unsaved'?t.savePending:t[saveError||'saveFailed']}</span></div>
+    <div class="project-title"><label for="project-name" class="sr-only">{t.projectName}</label><input id="project-name" value={project.name} maxlength="120" oninput={(e)=>setProject({...project,name:e.currentTarget.value},'name')} /><span class:save-error={saveState==='error'} class:save-unsaved={saveState==='unsaved'} class="save-state" role="status">{saveState==='saved'?t.saveReady:saveState==='saving'?t.saving:saveState==='unsaved'?t.savePending:t[saveError||'saveFailed']}</span></div>
     <div class="header-actions">
       <button class="language-toggle" aria-label={t.languageToggle} title={t.languageToggle} onclick={toggleLanguage}>{language==='ar'?'EN':'عربي'}</button>
       <button class="theme-toggle" aria-label={theme==='dark'?t.lightMode:t.darkMode} title={theme==='dark'?t.lightMode:t.darkMode} aria-pressed={theme==='dark'} onclick={toggleTheme}>
         {#if theme==='dark'}<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>{:else}<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z"/></svg>{/if}
       </button>
-      <button class="save-button" disabled={saveState==='saved'||saveState==='saving'||Object.keys(draftErrors).length>0} onclick={saveCurrent}>{t.save}</button>
+      <button class="history-button history-undo" aria-label={t.undo} title={t.undo} aria-keyshortcuts="Control+Z Meta+Z" disabled={!past.length} onclick={undo}><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-2"/></svg></button>
+      <button class="history-button history-redo" aria-label={t.redo} title={t.redo} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y" disabled={!future.length} onclick={redo}><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h2"/></svg></button>
+      <button class="save-button" disabled={saveState==='saved'||saveInFlight||Object.keys(draftErrors).length>0} onclick={saveCurrent}>{t.save}</button>
       <button class="text-button" onclick={()=>projectDialog.showModal()}>{t.projects}</button>
       <button class="new-project-button" onclick={createNew}><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>{t.newProject}</button>
       <button bind:this={exportTrigger} class="primary-button" aria-controls="export-panel" aria-expanded={exportOpen} onclick={toggleExport}>{t.exportTemplate}</button>
@@ -330,7 +392,7 @@
           {/if}
           {@render numberField('bleed',t.bleed)}
           <div class="field-group"><p class="field-group-title">{t.margins}</p><div class="field-grid">{@render numberField('margins.top',t.marginTop)}{@render numberField('margins.right',t.marginRight)}{@render numberField('margins.bottom',t.marginBottom)}{@render numberField('margins.left',t.marginLeft)}</div><p class="field-note">{t.marginHint}</p>{#if errorFor('margins')}<p class="field-error">{errorFor('margins')}</p>{/if}</div>
-          <div class="field-group"><p class="field-group-title">{t.slug}</p>{@render numberField('slug.height',t.slugHeight)}{#if project.slug.height>0}<div class="field"><label for="slug-text">{t.slugText}</label><input id="slug-text" type="text" maxlength="120" value={project.slug.text} oninput={(e)=>setProject({...project,slug:{...project.slug,text:e.currentTarget.value}})} /></div>{/if}<p class="field-note">{t.slugHint}</p></div>
+          <div class="field-group"><p class="field-group-title">{t.slug}</p>{@render numberField('slug.height',t.slugHeight)}{#if project.slug.height>0}<div class="field"><label for="slug-text">{t.slugText}</label><input id="slug-text" type="text" maxlength="120" value={project.slug.text} oninput={(e)=>setProject({...project,slug:{...project.slug,text:e.currentTarget.value}},'slug.text')} /></div>{/if}<p class="field-note">{t.slugHint}</p></div>
         </div>
       </details>
       <details>
@@ -346,7 +408,7 @@
         <div class="section-body">
           <label class="check-row"><input type="checkbox" checked={project.barcode.enabled} onchange={(e)=>setProject({...project,barcode:{...project.barcode,enabled:e.currentTarget.checked}})} />{t.barcodeEnabled}</label>
           {#if project.barcode.enabled}
-            <div class="field"><label for="isbn">{t.isbn}</label><input id="isbn" type="text" dir="ltr" inputmode="numeric" value={project.barcode.isbn} aria-invalid={!!errorFor('isbn')} aria-describedby={errorFor('isbn')?'isbn-error':undefined} oninput={(e)=>setProject({...project,barcode:{...project.barcode,isbn:e.currentTarget.value}})} />{#if errorFor('isbn')}<small class="field-error" id="isbn-error">{errorFor('isbn')}</small>{/if}</div>
+            <div class="field"><label for="isbn">{t.isbn}</label><input id="isbn" type="text" dir="ltr" inputmode="numeric" value={project.barcode.isbn} aria-invalid={!!errorFor('isbn')} aria-describedby={errorFor('isbn')?'isbn-error':undefined} oninput={(e)=>setProject({...project,barcode:{...project.barcode,isbn:e.currentTarget.value}},'isbn')} />{#if errorFor('isbn')}<small class="field-error" id="isbn-error">{errorFor('isbn')}</small>{/if}</div>
             <div class="field-grid">{@render barcodeField('x',t.barcodeX)}{@render barcodeField('y',t.barcodeY)}{@render barcodeField('width',t.barcodeWidth)}{@render barcodeField('height',t.barcodeHeight)}</div>
             {#if errorFor('barcode')}<p class="field-error">{errorFor('barcode')}</p>{/if}
             <p class="field-note">{t.quietZones}</p>

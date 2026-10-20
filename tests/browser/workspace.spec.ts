@@ -72,6 +72,8 @@ test('Arabic workspace saves, reopens, duplicates and exports',async({page},test
   await reloadReady(page);
   await expect(page.locator('#field-spine')).toHaveValue('12');
   await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
+  await expect(page.getByRole('button',{name:'تراجع'})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'إعادة'})).toBeDisabled();
   const exportTrigger=page.getByRole('button',{name:'تصدير القالب'});
   await exportTrigger.click();
   await expect(page.getByRole('region',{name:'تصدير القالب'})).toBeVisible();
@@ -182,6 +184,58 @@ test('manual save keeps edits in memory until saved and warns before switching p
   expect(warnings.some(message=>message.includes('state_proxy_equality_mismatch'))).toBe(false);
 });
 
+test('undo and redo restore edits, invalid drafts, saved state, and construction',async({page})=>{
+  await gotoReady(page);
+  const undo=page.getByRole('button',{name:'تراجع'});
+  const redo=page.getByRole('button',{name:'إعادة'});
+  const spine=page.locator('#field-spine');
+  await expect(undo).toBeDisabled();
+  await expect(redo).toBeDisabled();
+  await spine.fill('1');
+  await spine.fill('12');
+  await undo.click();
+  await expect(spine).toHaveValue('0');
+  await expect(page.locator('.document-size')).toContainText('302');
+  await redo.click();
+  await expect(spine).toHaveValue('12');
+  await spine.fill('abc');
+  await expect(spine).toHaveAttribute('aria-invalid','true');
+  await undo.click();
+  await expect(spine).toHaveValue('12');
+  await expect(spine).toHaveAttribute('aria-invalid','false');
+  await redo.click();
+  await expect(spine).toHaveValue('abc');
+  await undo.click();
+  await spine.fill('16');
+  await expect(redo).toBeDisabled();
+  await page.getByRole('button',{name:'حفظ المشروع'}).click();
+  await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
+  const margin=page.locator('[id="field-margins.top"]');
+  await margin.fill('7');
+  await page.keyboard.press('Control+z');
+  await expect(margin).toHaveValue('5');
+  await expect(page.locator('.save-state')).toContainText('محفوظ محليًا');
+  await page.keyboard.press('Control+Shift+z');
+  await expect(margin).toHaveValue('7');
+  await expect(page.locator('.save-state')).toContainText('تعديلات غير محفوظة');
+  await page.keyboard.press('Control+z');
+  await page.keyboard.press('Control+y');
+  await expect(margin).toHaveValue('7');
+  await page.locator('#construction').selectOption('hardcover');
+  await undo.click();
+  await expect(page.locator('#construction')).toHaveValue('paperback');
+  await expect(spine).toHaveValue('16');
+  await redo.click();
+  await expect(page.locator('#construction')).toHaveValue('hardcover');
+  page.once('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'مشروع جديد'}).click();
+  await expect(undo).toBeDisabled();
+  await expect(redo).toBeDisabled();
+  await page.getByRole('button',{name:'Switch to English'}).click();
+  await expect(page.getByRole('button',{name:'Undo'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Redo'})).toBeVisible();
+});
+
 test('mobile viewport keeps preview above settings and imports are validated',async({page},testInfo)=>{
   await page.setViewportSize({width:390,height:844});
   await gotoReady(page);
@@ -191,6 +245,8 @@ test('mobile viewport keeps preview above settings and imports are validated',as
   await expect(page.locator('.brand-icon')).toBeVisible();
   const newProject=page.getByRole('button',{name:'مشروع جديد'});
   await expect(newProject).toBeVisible();
+  await expect(page.getByRole('button',{name:'تراجع'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'إعادة'})).toBeVisible();
   expect((await newProject.boundingBox())!.height).toBeLessThanOrEqual(44);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const previewBox=await page.locator('.preview-area').boundingBox();
@@ -210,7 +266,7 @@ test('mobile viewport keeps preview above settings and imports are validated',as
   await page.locator('input[type=file]').setInputFiles({name:'broken.tajleed.json',mimeType:'application/json',buffer:Buffer.from('{"format":"tajleed-project","version":999}')});
   await expect(page.getByText('تعذر استيراد الملف. تحقق من بنية المشروع وإصداره.')).toBeVisible();
   await page.getByRole('button',{name:'إغلاق'}).click();
-  for (const width of [850,900,1024]) {
+  for (const width of [320,850,900,1024,1280]) {
     await page.setViewportSize({width,height:844});
     await expect(newProject).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

@@ -9,6 +9,7 @@ Tajleed is an Arabic-first browser workspace for designers and print shops to cr
 - New projects begin with editable A5 dimensions (148 × 210 mm), 3 mm bleed, and 5 mm safety margins on each of the four physical sides. They need a valid spine value before document export.
 - Users can preview, zoom, pan, fit the page, and toggle screen guides. Document measurements do not depend on zoom.
 - Users save projects explicitly with the header button. A visible New project button in the header starts a fresh cover without opening project management. Unsaved changes remain in memory and trigger a warning before switching projects or leaving the page. A successful save stores the project in IndexedDB. Users can create, rename, duplicate, reopen, and delete with confirmation, and transfer a versioned `.tajleed.json` backup. Version 1 projects are migrated on opening or import.
+- The header offers Undo and Redo for edits within the current project, including incomplete measurement input. Consecutive typing in one field is one undo step. History is limited to 100 steps in the current session and resets when another project is created, opened, duplicated, imported, or selected after deletion; saving does not clear it.
 - The workspace offers light and dark appearances. It follows the device setting until the user chooses a mode, then remembers that choice locally. Workspace appearance does not alter template geometry or exports.
 
 ## Measurement and output rules
